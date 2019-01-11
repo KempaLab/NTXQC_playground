@@ -104,7 +104,28 @@ import_files <- function(path_files, mode, conv_list, condition_list, plot_graph
   temp_extr = unlist(strsplit(path_files, split = "/", fixed = TRUE))[2]
   write.csv(data_export, paste0("output/", temp_extr, "_export.csv"), row.names = FALSE)
   message("Done - input data exported as .csv-file: ",temp_extr)
-
+  
+  
+  if (plot_graph == TRUE) {
+    
+    for (var in unique(data_export$nuc_group)) {
+      print(
+        ggplot(subset(data_export, data_export$nuc_group == var & data_export$calcurve != "TrueBlank"), 
+               aes(x = level, y = median_intensity, colour = date)) + 
+          geom_point() + 
+          facet_grid(nuc~transition_id, scales = "free_y") + 
+          theme_bw() + 
+          theme(axis.text.x = element_text(size = 6),
+                axis.text.y = element_text(size = 8)) +
+          ggtitle(paste0("Nucleotide (Calibration): ", var)) +
+          theme(strip.text = element_text(size = 8), 
+                strip.background = element_rect(fill = "white")) +
+          scale_y_continuous(labels = function(x) format(x, scientific = TRUE),
+                             breaks = NULL) +
+          scale_color_manual(values = c("dodgerblue3", "black", "red"))
+      )
+    }
+  }
   return(data_export) 
 }  
 
@@ -125,22 +146,23 @@ import_files <- function(path_files, mode, conv_list, condition_list, plot_graph
 #' 
 #' @export
 evaluate_calibrations <- function(cal_data, eval_trueblank = TRUE, 
-                                  true_blank = "TrueBlank", excl_below_tb = TRUE,
-                                  eval_saturation = TRUE, eval_level = "top2",
-                                  excl_saturated = TRUE,
+                                  true_blank = "TrueBlank", 
+                                  excl_below_tb = TRUE,
+                                  eval_saturation = FALSE, eval_level = "top2",
+                                  excl_saturated = FALSE,
                                   incl_plot = TRUE, path_files = "output/", ...) {
   data_export = cal_data
-
+  
   if (eval_trueblank == TRUE) { #### TRUE-BLANK - $tag_noise---@param: true_blank
     
     ###### calc mean-val for true blank, unique values
     tb_mean = subset(data_export, data_export$calcurve == true_blank)
-  
+    
     tb_mean = ddply(tb_mean, c("nuc_id", "nuc_group" ,"transition_id"), transform, 
                     n_tb_val = length(median_intensity), 
                     mean_tb_val = mean(median_intensity),
                     sd_tb_val = sd(median_intensity))
-  
+    
     tb_mean = unique(tb_mean[, c("nuc_id", "nuc_group" ,"transition_id", "mean_tb_val")])
     
     
@@ -152,15 +174,15 @@ evaluate_calibrations <- function(cal_data, eval_trueblank = TRUE,
     data_values$tag_noise = ifelse(data_values$median_intensity <= data_values$mean_tb_val, 
                                    "below_tb", "above_tb")
     
-  data_export = data_values
-  #end true blank
+    data_export = data_values
+    #end true blank
   }
   
   if (eval_saturation == TRUE) { #### SATURATION - $tag_saturation-- @param: saturation----------
     
     ##### select top2 levels and check for min of delta between mean-values(median_intensity)
     data_sat = subset(data_export, data_export$level >= 5)
-  
+    
     data_sat = ddply(data_sat, c("nuc_id", "nuc","nuc_group", "transition_id", "date" ,"level"), summarise, 
                      n_int = length(median_intensity),
                      mean_int = mean(median_intensity), 
@@ -174,14 +196,16 @@ evaluate_calibrations <- function(cal_data, eval_trueblank = TRUE,
     data_sat_m$ratio_5 = data_sat_m$mean_int / data_sat_m$ref_l10_int
     
     ### small freq table
-    freq_table = count(data_sat_m, vars = c("nuc"))
+    #freq_table = count(data_sat_m, vars = c("nuc"))
     
-  #end saturation  
-  }  
-    
+    #end saturation  
+  }  else {
+    data_fin = data_export
+  }
+  
   if (incl_plot == TRUE) {
-  ###### plotting ------------------ @param: exclude_below_tb -------------------
-  ######             @param: generate_plot
+    ###### plotting ------------------ @param: exclude_below_tb -------------------
+    ######             @param: generate_plot
     
     data_plot = data_fin
     
@@ -197,8 +221,8 @@ evaluate_calibrations <- function(cal_data, eval_trueblank = TRUE,
       data_plot = subset(data_plot, data_plot$tag_saturation != "saturated")
       message("Done - excluded saturated levels!")
     } 
-  
-  
+    
+    
     for (var in unique(data_plot$nuc_group)) {
       print(
         ggplot(subset(data_plot, data_plot$nuc_group == var), 
@@ -217,12 +241,12 @@ evaluate_calibrations <- function(cal_data, eval_trueblank = TRUE,
           scale_color_manual(values = c("dodgerblue3", "black", "red"))
       )
     }
-  
     
-  #end plot  
+    
+    #end plot  
   } 
-
-#end function    
+  
+  #end function    
 }
 
 
@@ -236,7 +260,7 @@ evaluate_calibrations <- function(cal_data, eval_trueblank = TRUE,
 #' 
 #' @return Plot object that can be printed
 #' 
-plot_calibrations <- function(cal_data, ...) {
-  
-  
-}
+#plot_calibrations <- function(cal_data, ...) {
+#  
+#  
+#}
