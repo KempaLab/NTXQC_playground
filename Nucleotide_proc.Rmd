@@ -1,0 +1,118 @@
+---
+title: 'Nucleotides developmental version'
+author: "Christin"
+date: "january 08, 2019"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r setup_knitr_general, include=FALSE}
+
+opts_chunk$set(out.width = '\\linewidth')
+opts_chunk$set(fig.align = 'center')
+opts_chunk$set(fig.show = 'asis')
+
+```
+
+## Libaries, functions and Input
+
+```{r Intro}
+
+library(reshape2)
+library(ggplot2)
+library(RColorBrewer)
+library(plyr)
+library(scales)
+library(magrittr)
+
+source("Nucl_calibration_fcn.R")
+```
+
+## Calibration curves
+
+### Import data 
+
+
+```{r calibration_curves, fig.width=6, fig.height=5}
+#### Import all required input files ---------------------------------
+# Concentration levels of cal. curves
+cal_conc = read.csv("level_conc_relation.csv", header = T)
+
+# Annotation file calibration curve
+nucl_names = read.csv("nucleotide_names_mapping.csv", header = T)
+
+# Import calibration files incl. TrueBlanks
+cal = import_files("input/calibrations/", 
+                   mode = "cal",
+                   conv_list = nucl_names, 
+                   condition_list = cal_conc, 
+                   plot_graph = TRUE)
+```
+
+### Evaluate calibration curves
+
+Evaluation for:
+
+  * Noise level
+  * Saturation
+
+
+```{r cal_evaluate}
+
+
+```
+
+
+
+## Sample files - Import and processing
+
+
+```{r sample_proc}
+
+#nucl_names = read.csv("nucleotide_names_mapping.csv", header = T)
+annotation = read.csv("input/annotation.csv", TRUE)
+
+#import samples data
+samples = import_files("input/samples/", mode = "samples", 
+                       conv_list = nucl_names,
+                       condition_list = annotation,
+                       plot_graph = TRUE)
+
+```
+
+
+```{r export_statistics}
+
+### Correction of file names accordingly to Birtes sample list
+conv_filenames = read.csv("input/annotation.csv", TRUE)
+data_export = merge(nucl_sum, conv_filenames, all.x = TRUE)
+
+
+##write a csv with intensities for all files (=technical replicates measured)
+#write.csv(nucl_sum, "output/Sample_data.csv", row.names = FALSE)
+write.csv(data_export, "output/Sample_data.csv", row.names = FALSE)
+
+##summarises all technical replcates for one sample (max. 3 TR) and write a csv with averaged intensities for BRs
+nucl_sum_summarised = summarySE(nucl_sum, measurevar = "mean", groupvars = c("file", "nuc"))
+
+head(nucl_sum_summarised)
+
+write.csv(nucl_sum_summarised, "output/Nucleotides_statistics.csv", row.names = FALSE)
+```
+
+## Next steps
+
+Still required and missing:
+
+  * Check for linearity range
+  * Evaluation of transitions
+  * Naming of batches: from A to batch1, ...
+  * Levels change to dilutions
+  * NucleoMixA corresponding to Quant1
+  * Renaming: mean into mean_int

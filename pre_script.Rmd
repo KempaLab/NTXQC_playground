@@ -1,0 +1,71 @@
+---
+title: "testing_plots"
+author: "Christin Zasada"
+date: "10 January 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+library(reshape2)
+library(ggplot2)
+library(RColorBrewer)
+library(plyr)
+library(scales)
+library(magrittr)
+```
+
+
+```{r import}
+
+data_export = read.csv("output/calibrations_export.csv", TRUE)
+
+#calc mean-val for true blank
+
+ tb_mean = subset(data_export, data_export$calcurve == "TrueBlank")
+      
+  #maybe also group for date?
+ tb_mean = ddply(tb_mean, c("nuc_id", "nuc_group" ,"transition_id"), transform, 
+                      n_tb_val = length(median_intensity), 
+                      mean_tb_val = mean(median_intensity),
+                      sd_tb_val = sd(median_intensity))
+    
+      
+  tb_mean = unique(tb_mean[, c("nuc_id", "nuc_group" ,"transition_id", "mean_tb_val")])
+      
+  
+####### pre-selection only ng_group == ng_01
+  data_values = merge(data_export, tb_mean)
+  data_values = subset(data_values, data_values$calcurve != "TrueBlank")
+   
+  #Evaluate $noise: below or above true blank
+  data_values$tag_noise = ifelse(data_values$median_intensity <= data_values$mean_tb_val, 
+                                 "below_tb", "above_tb")
+
+  #plotting
+  data_plot = subset(data_values, data_values$tag_noise != "below_tb")
+  
+  #plot
+  for (var in unique(data_plot$nuc_group)) {
+    print(
+          ggplot(subset(data_plot, data_plot$nuc_group == var), 
+           aes(x = level, y = median_intensity, colour = factor(date))) + 
+          geom_point() + 
+          facet_grid(nuc ~ transition_id, scales = "free_y") + 
+          geom_hline(aes(yintercept = mean_tb_val), color = "grey", linetype = 2) + 
+          theme_bw() + 
+          theme(axis.text.x = element_text(size = 6),
+                axis.text.y = element_text(size = 8)) +
+          ggtitle(paste0("Nucleotide (Calibration): ", var)) +
+          theme(strip.text = element_text(size = 8), 
+                strip.background = element_rect(fill = "white")) +
+          scale_y_continuous(labels = function(x) format(x, scientific = TRUE),
+                             breaks = NULL) +
+          scale_color_manual(values = c("dodgerblue3", "black", "red"))
+    )
+  }
+
+                        
+  write.csv(data_values, "output/calibration_evaluation.csv")
+  
+```
